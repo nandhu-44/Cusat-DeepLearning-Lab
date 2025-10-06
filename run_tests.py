@@ -75,21 +75,29 @@ def main():
         "--output-dir", "outputs/test_q3"
     ], "Q3: ICA Blind Source Separation (Synthetic)")
     
+    # Test Q4: PCA vs MDS Comparison
+    q4_success = run_command([
+        python_cmd, "-m", "q4.main",
+        "--n-components", "1", "2", "3", "4",
+        "--output-dir", "outputs/test_q4"
+    ], "Q4: PCA vs Metric/Non-Metric MDS Comparison")
+    
     # Summary
     print(f"\n{'='*60}")
     print("TEST SUMMARY")
     print(f"{'='*60}")
-    print(f"Q1 (PPCA Image Compression): {'✓ PASS' if q1_success else '✗ FAIL'}")
-    print(f"Q2 (PPCA Missing Data):      {'✓ PASS' if q2_success else '✗ FAIL'}")
-    print(f"Q3 (ICA Audio Separation):   {'✓ PASS' if q3_success else '✗ FAIL'}")
+    print(f"Q1 (PPCA Image Compression):  {'✓ PASS' if q1_success else '✗ FAIL'}")
+    print(f"Q2 (PPCA Missing Data):       {'✓ PASS' if q2_success else '✗ FAIL'}")
+    print(f"Q3 (ICA Audio Separation):    {'✓ PASS' if q3_success else '✗ FAIL'}")
+    print(f"Q4 (PCA vs MDS Comparison):   {'✓ PASS' if q4_success else '✗ FAIL'}")
     
-    total_passed = sum([q1_success, q2_success, q3_success])
-    print(f"\nOverall: {total_passed}/3 tests passed")
+    total_passed = sum([q1_success, q2_success, q3_success, q4_success])
+    print(f"\nOverall: {total_passed}/4 tests passed")
     
-    if total_passed == 3:
+    if total_passed == 4:
         print("\n🎉 All tests passed! Lab implementation complete.")
     else:
-        print(f"\n⚠️  {3-total_passed} test(s) failed. Check output above for details.")
+        print(f"\n⚠️  {4-total_passed} test(s) failed. Check output above for details.")
         sys.exit(1)
 
 
