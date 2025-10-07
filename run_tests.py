@@ -82,6 +82,16 @@ def main():
         "--output-dir", "outputs/test_q4"
     ], "Q4: PCA vs Metric/Non-Metric MDS Comparison")
     
+    # Test Q5: Manifold Learning + RBM (small tests)
+    q5_success = run_command([
+        python_cmd, "-m", "q5.main",
+        "--run-all",
+        "--part1-dataset", "digits",
+        "--part2-dataset", "toy",
+        "--epochs", "20",
+        "--output-dir", "outputs/test_q5"
+    ], "Q5: Dimensionality Reduction + RBM")
+    
     # Summary
     print(f"\n{'='*60}")
     print("TEST SUMMARY")
@@ -90,14 +100,15 @@ def main():
     print(f"Q2 (PPCA Missing Data):       {'✓ PASS' if q2_success else '✗ FAIL'}")
     print(f"Q3 (ICA Audio Separation):    {'✓ PASS' if q3_success else '✗ FAIL'}")
     print(f"Q4 (PCA vs MDS Comparison):   {'✓ PASS' if q4_success else '✗ FAIL'}")
+    print(f"Q5 (Manifold + RBM):          {'✓ PASS' if q5_success else '✗ FAIL'}")
     
-    total_passed = sum([q1_success, q2_success, q3_success, q4_success])
-    print(f"\nOverall: {total_passed}/4 tests passed")
+    total_passed = sum([q1_success, q2_success, q3_success, q4_success, q5_success])
+    print(f"\nOverall: {total_passed}/5 tests passed")
     
-    if total_passed == 4:
+    if total_passed == 5:
         print("\n🎉 All tests passed! Lab implementation complete.")
     else:
-        print(f"\n⚠️  {4-total_passed} test(s) failed. Check output above for details.")
+        print(f"\n⚠️  {5-total_passed} test(s) failed. Check output above for details.")
         sys.exit(1)
 
 

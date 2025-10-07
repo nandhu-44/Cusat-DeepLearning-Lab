@@ -1,0 +1,29 @@
+Q5 Part 2: Restricted Boltzmann Machine - Results
+======================================================================
+
+Dataset: toy
+Samples: 1000
+Visible units: 64
+Hidden units: 64
+Learning rate: 0.1
+Epochs: 20
+Batch size: 32
+
+Training Results:
+----------------------------------------------------------------------
+Initial reconstruction error: 0.213344
+Final reconstruction error: 0.209219
+Error on full dataset: 0.206558
+
+Improvement: 1.93%
+
+
+How does reconstruction error change during training?
+----------------------------------------------------------------------
+1. Initially high: Random weights produce poor reconstructions
+2. Rapid decrease: RBM learns major patterns in first epochs
+3. Gradual convergence: Fine-tuning to capture details
+4. Plateau: Model reaches capacity for given architecture
+
+The error typically follows a logarithmic decay pattern,
+with fast initial learning followed by diminishing returns.

@@ -1,0 +1,41 @@
+Q5 Part 1: Manifold Learning Comparison - DIGITS
+======================================================================
+
+Dataset: digits
+Samples: 1797
+Features: 64
+Classes: 10
+
+Computation Times:
+----------------------------------------------------------------------
+t-SNE          :     4.64s
+LLE            :     0.18s
+UMAP           :    10.68s
+Isomap         :     0.51s
+
+
+Method Characteristics:
+----------------------------------------------------------------------
+t-SNE:
+  - Preserves local structure very well
+  - Good for visualization and cluster discovery
+  - Non-deterministic (different runs give different results)
+  - Slow for large datasets
+
+LLE (Locally Linear Embedding):
+  - Assumes data lies on locally linear patches
+  - Preserves local neighborhood structure
+  - Faster than t-SNE
+  - Can struggle with noisy data
+
+UMAP:
+  - Preserves both local and global structure
+  - Faster than t-SNE
+  - Better scalability to large datasets
+  - Often produces tighter clusters than t-SNE
+
+Isomap:
+  - Preserves geodesic distances
+  - Good for datasets on curved manifolds
+  - Sensitive to neighborhood size parameter
+  - Can handle non-linear structures
