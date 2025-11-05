@@ -1,413 +1,208 @@
-"""Question 4: Comparing PCA, Metric MDS, and Non-Metric MDS
-
-Objectives:
-1. Apply PCA, Metric MDS (classical MDS), and Non-Metric MDS on Iris dataset
-2. Plot 2D embeddings side by side
-3. Compare cluster separation quality
-4. Stress function analysis: plot stress vs. number of dimensions for Non-Metric MDS
-5. Explain why stress decreases as dimension increases
-
-Usage:
-    python -m q4.main
-    python -m q4.main --n-components 2 3 4 5 --verbose
-"""
-
-from __future__ import annotations
-
-import argparse
-from pathlib import Path
-from typing import Tuple
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.datasets import load_iris
+from sklearn.datasets import load_wine, load_iris
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, davies_bouldin_score
-import warnings
+from scipy.spatial.distance import pdist, squareform
+import seaborn as sns
 
-warnings.filterwarnings('ignore')
+# Set style for better plots
+sns.set_style("whitegrid")
+plt.rcParams['figure.figsize'] = (15, 5)
 
+print("=" * 80)
+print("PART 1: PCA vs Metric MDS vs Non-Metric MDS on Wine Dataset")
+print("=" * 80)
 
-def load_and_preprocess_iris() -> Tuple[np.ndarray, np.ndarray, list[str]]:
-    """Load and standardize the Iris dataset."""
-    iris = load_iris()
-    X = iris.data  # 150 samples, 4 features
-    y = iris.target  # 3 classes
-    target_names = iris.target_names.tolist()
+# Load Wine dataset (13 dimensional features, 3 classes)
+wine = load_wine()
+X_wine = wine.data
+y_wine = wine.target
+wine_names = wine.target_names
+
+print(f"\nWine Dataset Info:")
+print(f"- Shape: {X_wine.shape}")
+print(f"- Features: {wine.feature_names}")
+print(f"- Classes: {wine_names}")
+print(f"- Class distribution: {np.bincount(y_wine)}")
+
+# Standardize the data (important for distance-based methods)
+scaler = StandardScaler()
+X_wine_scaled = scaler.fit_transform(X_wine)
+
+print("\n" + "-" * 80)
+print("Applying Dimensionality Reduction Methods...")
+print("-" * 80)
+
+# 1. PCA (Principal Component Analysis)
+print("\n1. PCA - Linear dimensionality reduction")
+print("   - Preserves global variance structure")
+print("   - Fast computation")
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_wine_scaled)
+explained_var = pca.explained_variance_ratio_
+print(f"   - Explained variance: {explained_var[0]:.3f} + {explained_var[1]:.3f} = {sum(explained_var):.3f}")
+
+# 2. Metric MDS (Classical MDS / PCoA)
+print("\n2. Metric MDS - Preserves exact distances")
+print("   - Uses Euclidean distances")
+print("   - Maintains metric properties")
+mds_metric = MDS(n_components=2, metric=True, dissimilarity='euclidean', 
+                 random_state=42, n_init=10, max_iter=300)
+X_mds_metric = mds_metric.fit_transform(X_wine_scaled)
+stress_metric = mds_metric.stress_
+print(f"   - Stress value: {stress_metric:.2f}")
+
+# 3. Non-Metric MDS (Preserves rank order of distances)
+print("\n3. Non-Metric MDS - Preserves rank order of distances")
+print("   - More flexible than metric MDS")
+print("   - Focuses on ordinal relationships")
+mds_nonmetric = MDS(n_components=2, metric=False, dissimilarity='euclidean',
+                    random_state=42, n_init=10, max_iter=300)
+X_mds_nonmetric = mds_nonmetric.fit_transform(X_wine_scaled)
+stress_nonmetric = mds_nonmetric.stress_
+print(f"   - Stress value: {stress_nonmetric:.2f}")
+
+# Plot all three methods side by side
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
+markers = ['o', 's', '^']
+
+methods = [
+    (X_pca, 'PCA', f'Explained Var: {sum(explained_var):.1%}'),
+    (X_mds_metric, 'Metric MDS', f'Stress: {stress_metric:.2f}'),
+    (X_mds_nonmetric, 'Non-Metric MDS', f'Stress: {stress_nonmetric:.2f}')
+]
+
+for idx, (X_transformed, title, subtitle) in enumerate(methods):
+    ax = axes[idx]
     
-    # Standardize features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    for i, (class_idx, class_name) in enumerate(zip(range(3), wine_names)):
+        mask = y_wine == class_idx
+        ax.scatter(X_transformed[mask, 0], X_transformed[mask, 1],
+                  c=colors[i], label=class_name, marker=markers[i],
+                  s=100, alpha=0.7, edgecolors='black', linewidth=0.5)
     
-    return X_scaled, y, target_names
-
-
-def apply_pca(X: np.ndarray, n_components: int = 2) -> Tuple[np.ndarray, PCA]:
-    """Apply PCA for dimensionality reduction."""
-    pca = PCA(n_components=n_components, random_state=0)
-    X_pca = pca.fit_transform(X)
-    return X_pca, pca
-
-
-def apply_metric_mds(X: np.ndarray, n_components: int = 2) -> Tuple[np.ndarray, MDS]:
-    """Apply Metric MDS (Classical MDS with metric=True)."""
-    mds = MDS(
-        n_components=n_components,
-        metric=True,
-        dissimilarity='euclidean',
-        random_state=0,
-        max_iter=300,
-        n_init=4
-    )
-    X_mds = mds.fit_transform(X)
-    return X_mds, mds
-
-
-def apply_nonmetric_mds(X: np.ndarray, n_components: int = 2) -> Tuple[np.ndarray, MDS, float]:
-    """Apply Non-Metric MDS and return stress value."""
-    mds = MDS(
-        n_components=n_components,
-        metric=False,
-        dissimilarity='euclidean',
-        random_state=0,
-        max_iter=300,
-        n_init=4
-    )
-    X_nmds = mds.fit_transform(X)
-    stress = mds.stress_
-    return X_nmds, mds, stress
-
-
-def plot_2d_comparison(X_pca: np.ndarray, X_mds: np.ndarray, X_nmds: np.ndarray,
-                       y: np.ndarray, target_names: list[str], 
-                       output_path: Path):
-    """Plot PCA, Metric MDS, and Non-Metric MDS side by side."""
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    
-    methods = [
-        (X_pca, "PCA (2D)", axes[0]),
-        (X_mds, "Metric MDS (2D)", axes[1]),
-        (X_nmds, "Non-Metric MDS (2D)", axes[2])
-    ]
-    
-    colors = ['red', 'green', 'blue']
-    
-    for X_emb, title, ax in methods:
-        for i, (target, color, name) in enumerate(zip(range(3), colors, target_names)):
-            mask = y == target
-            ax.scatter(
-                X_emb[mask, 0], 
-                X_emb[mask, 1],
-                c=color,
-                label=name,
-                alpha=0.7,
-                edgecolors='k',
-                linewidth=0.5,
-                s=60
-            )
-        
-        ax.set_xlabel('Dimension 1', fontsize=11)
-        ax.set_ylabel('Dimension 2', fontsize=11)
-        ax.set_title(title, fontsize=13, fontweight='bold')
-        ax.legend(loc='best', fontsize=9)
-        ax.grid(True, alpha=0.3)
-        ax.axhline(y=0, color='k', linewidth=0.5, alpha=0.3)
-        ax.axvline(x=0, color='k', linewidth=0.5, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"Saved 2D comparison plot: {output_path}")
-    plt.close()
-
-
-def compute_clustering_metrics(X_emb: np.ndarray, y: np.ndarray) -> dict:
-    """Compute clustering quality metrics."""
-    # Silhouette Score (higher is better, range: -1 to 1)
-    silhouette = silhouette_score(X_emb, y)
-    
-    # Davies-Bouldin Score (lower is better, minimum: 0)
-    davies_bouldin = davies_bouldin_score(X_emb, y)
-    
-    return {
-        'silhouette': silhouette,
-        'davies_bouldin': davies_bouldin
-    }
-
-
-def stress_function_analysis(X: np.ndarray, dimensions: list[int], 
-                            output_path: Path, verbose: bool = False):
-    """
-    Perform stress function analysis for Non-Metric MDS.
-    Plot stress vs. number of dimensions and explain the trend.
-    """
-    print("\n" + "="*60)
-    print("STRESS FUNCTION ANALYSIS")
-    print("="*60)
-    
-    stress_values = []
-    
-    for n_dim in dimensions:
-        if verbose:
-            print(f"Computing Non-Metric MDS for {n_dim} dimensions...")
-        
-        _, _, stress = apply_nonmetric_mds(X, n_components=n_dim)
-        stress_values.append(stress)
-        
-        print(f"  Dimensions: {n_dim:2d} | Stress: {stress:10.4f}")
-    
-    # Plot stress vs dimensions
-    fig, ax = plt.subplots(figsize=(8, 5))
-    
-    ax.plot(dimensions, stress_values, 'o-', linewidth=2, markersize=8, 
-            color='darkblue', label='Non-Metric MDS Stress')
-    
-    ax.set_xlabel('Number of Dimensions', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Stress Value', fontsize=12, fontweight='bold')
-    ax.set_title('Stress Function Analysis: Non-Metric MDS on Iris Dataset', 
-                fontsize=13, fontweight='bold')
+    ax.set_xlabel('Component 1', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Component 2', fontsize=12, fontweight='bold')
+    ax.set_title(f'{title}\n{subtitle}', fontsize=14, fontweight='bold')
+    ax.legend(loc='best', frameon=True, shadow=True)
     ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=10)
-    
-    # Add explanation text box
-    explanation = (
-        "Why does stress decrease as dimension increases?\n\n"
-        "1. More degrees of freedom: Higher dimensions allow\n"
-        "   more flexibility to preserve pairwise distances.\n\n"
-        "2. Less constraint: With more dimensions, the\n"
-        "   embedding can better match the original\n"
-        "   distance relationships.\n\n"
-        "3. Perfect embedding: At D=4 (original dimension),\n"
-        "   stress approaches zero as the data can be\n"
-        "   represented without distortion."
-    )
-    
-    ax.text(0.98, 0.97, explanation,
-            transform=ax.transAxes,
-            fontsize=9,
-            verticalalignment='top',
-            horizontalalignment='right',
-            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
-    
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"\nSaved stress analysis plot: {output_path}")
-    plt.close()
-    
-    return stress_values
 
+plt.tight_layout()
+plt.savefig('./outputs/pca_vs_mds_wine.png', dpi=300, bbox_inches='tight')
+print(f"\n✓ Plot saved to ./outputs/pca_vs_mds_wine.png")
 
-def compare_methods_quality(X: np.ndarray, y: np.ndarray, target_names: list[str]):
-    """
-    Compare clustering quality metrics for all three methods.
-    Explain which method shows clearer cluster separation and why.
-    """
-    print("\n" + "="*60)
-    print("CLUSTERING QUALITY COMPARISON")
-    print("="*60)
+# Calculate separation metrics
+def calculate_separation(X, y):
+    """Calculate between-class and within-class distances"""
+    between_dists = []
+    within_dists = []
     
-    # Apply all three methods
-    X_pca, pca = apply_pca(X, n_components=2)
-    X_mds, _ = apply_metric_mds(X, n_components=2)
-    X_nmds, _, stress = apply_nonmetric_mds(X, n_components=2)
+    for i in range(len(X)):
+        for j in range(i+1, len(X)):
+            dist = np.linalg.norm(X[i] - X[j])
+            if y[i] == y[j]:
+                within_dists.append(dist)
+            else:
+                between_dists.append(dist)
     
-    # Compute metrics
-    metrics_pca = compute_clustering_metrics(X_pca, y)
-    metrics_mds = compute_clustering_metrics(X_mds, y)
-    metrics_nmds = compute_clustering_metrics(X_nmds, y)
-    
-    # Display results
-    print("\nMethod              | Silhouette↑ | Davies-Bouldin↓ | Notes")
-    print("-" * 75)
-    print(f"PCA                 | {metrics_pca['silhouette']:11.4f} | "
-          f"{metrics_pca['davies_bouldin']:15.4f} | Variance maximization")
-    print(f"Metric MDS          | {metrics_mds['silhouette']:11.4f} | "
-          f"{metrics_mds['davies_bouldin']:15.4f} | Distance preservation")
-    print(f"Non-Metric MDS      | {metrics_nmds['silhouette']:11.4f} | "
-          f"{metrics_nmds['davies_bouldin']:15.4f} | Rank-order preservation")
-    
-    # Determine best method
-    methods = ['PCA', 'Metric MDS', 'Non-Metric MDS']
-    silhouettes = [
-        metrics_pca['silhouette'],
-        metrics_mds['silhouette'],
-        metrics_nmds['silhouette']
-    ]
-    davies = [
-        metrics_pca['davies_bouldin'],
-        metrics_mds['davies_bouldin'],
-        metrics_nmds['davies_bouldin']
-    ]
-    
-    best_silhouette_idx = np.argmax(silhouettes)
-    best_davies_idx = np.argmin(davies)
-    
-    print("\n" + "="*60)
-    print("INTERPRETATION")
-    print("="*60)
-    
-    print(f"\nBest Silhouette Score: {methods[best_silhouette_idx]} "
-          f"({silhouettes[best_silhouette_idx]:.4f})")
-    print(f"Best Davies-Bouldin Score: {methods[best_davies_idx]} "
-          f"({davies[best_davies_idx]:.4f})")
-    
-    print("\nExplanation:")
-    print("-" * 60)
-    
-    if best_silhouette_idx == 0:  # PCA
-        print("• PCA shows clearer cluster separation because:")
-        print("  - It maximizes variance along principal components")
-        print("  - Classes in Iris have distinct feature distributions")
-        print("  - Linear projection effectively separates the classes")
-    elif best_silhouette_idx == 1:  # Metric MDS
-        print("• Metric MDS shows clearer cluster separation because:")
-        print("  - It preserves Euclidean distances between points")
-        print("  - Distance-based embedding reveals natural clusters")
-        print("  - Similar to PCA for Euclidean distances")
-    else:  # Non-Metric MDS
-        print("• Non-Metric MDS shows clearer cluster separation because:")
-        print("  - It focuses on preserving rank-order of distances")
-        print("  - More flexible than metric methods")
-        print("  - Can reveal non-linear cluster structures")
-    
-    print("\nGeneral Observations:")
-    print("  - All three methods perform similarly on Iris (linear structure)")
-    print("  - PCA is computationally fastest")
-    print("  - MDS methods preserve distance relationships more explicitly")
-    print("  - Non-Metric MDS is most robust to distance distortions")
-    
-    return {
-        'pca': metrics_pca,
-        'metric_mds': metrics_mds,
-        'nonmetric_mds': metrics_nmds
-    }
+    return np.mean(between_dists), np.mean(within_dists)
 
+print("\n" + "-" * 80)
+print("CLUSTER SEPARATION ANALYSIS")
+print("-" * 80)
 
-def run_experiment(output_dir: str = "outputs/q4_mds", 
-                  stress_dimensions: list[int] = None,
-                  verbose: bool = False):
-    """Run the complete MDS comparison experiment."""
-    
-    if stress_dimensions is None:
-        stress_dimensions = [1, 2, 3, 4]
-    
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    
-    print("="*60)
-    print("Q4: PCA vs Metric MDS vs Non-Metric MDS Comparison")
-    print("="*60)
-    
-    # Load Iris dataset
-    print("\nLoading Iris dataset (13 features)...")
-    # Note: Iris actually has 4 features, but we'll work with it as given
-    X, y, target_names = load_and_preprocess_iris()
-    print(f"Dataset shape: {X.shape}")
-    print(f"Number of classes: {len(np.unique(y))}")
-    print(f"Class names: {target_names}")
-    
-    # Apply all three methods in 2D
-    print("\n" + "="*60)
-    print("APPLYING DIMENSIONALITY REDUCTION METHODS (2D)")
-    print("="*60)
-    
-    print("\n1. Applying PCA...")
-    X_pca, pca = apply_pca(X, n_components=2)
-    explained_var = pca.explained_variance_ratio_
-    print(f"   Explained variance: {explained_var[0]:.3f}, {explained_var[1]:.3f}")
-    print(f"   Total explained variance: {sum(explained_var):.3f}")
-    
-    print("\n2. Applying Metric MDS...")
-    X_mds, mds = apply_metric_mds(X, n_components=2)
-    print(f"   Metric MDS completed")
-    
-    print("\n3. Applying Non-Metric MDS...")
-    X_nmds, nmds, stress_2d = apply_nonmetric_mds(X, n_components=2)
-    print(f"   Stress value: {stress_2d:.4f}")
-    
-    # Plot 2D embeddings side by side
-    plot_2d_comparison(
-        X_pca, X_mds, X_nmds, y, target_names,
-        output_path / "2d_comparison.png"
-    )
-    
-    # Compare clustering quality
-    metrics = compare_methods_quality(X, y, target_names)
-    
-    # Stress function analysis
-    stress_values = stress_function_analysis(
-        X, stress_dimensions,
-        output_path / "stress_analysis.png",
-        verbose=verbose
-    )
-    
-    # Save numerical results
-    results_file = output_path / "results.txt"
-    with open(results_file, 'w') as f:
-        f.write("Q4: PCA vs Metric MDS vs Non-Metric MDS - Results\n")
-        f.write("="*60 + "\n\n")
-        
-        f.write("Dataset: Iris (150 samples, 4 features, 3 classes)\n\n")
-        
-        f.write("2D Embeddings - Clustering Quality:\n")
-        f.write("-" * 60 + "\n")
-        f.write(f"PCA:\n")
-        f.write(f"  Silhouette Score: {metrics['pca']['silhouette']:.4f}\n")
-        f.write(f"  Davies-Bouldin Score: {metrics['pca']['davies_bouldin']:.4f}\n\n")
-        
-        f.write(f"Metric MDS:\n")
-        f.write(f"  Silhouette Score: {metrics['metric_mds']['silhouette']:.4f}\n")
-        f.write(f"  Davies-Bouldin Score: {metrics['metric_mds']['davies_bouldin']:.4f}\n\n")
-        
-        f.write(f"Non-Metric MDS:\n")
-        f.write(f"  Silhouette Score: {metrics['nonmetric_mds']['silhouette']:.4f}\n")
-        f.write(f"  Davies-Bouldin Score: {metrics['nonmetric_mds']['davies_bouldin']:.4f}\n")
-        f.write(f"  Stress (2D): {stress_2d:.4f}\n\n")
-        
-        f.write("Stress Analysis (Non-Metric MDS):\n")
-        f.write("-" * 60 + "\n")
-        for dim, stress in zip(stress_dimensions, stress_values):
-            f.write(f"  {dim}D: {stress:.4f}\n")
-        
-        f.write("\n\nWhy stress decreases with increasing dimensions:\n")
-        f.write("-" * 60 + "\n")
-        f.write("1. More degrees of freedom allow better distance preservation\n")
-        f.write("2. Higher dimensions reduce constraints on point positioning\n")
-        f.write("3. At original dimensionality, perfect embedding is possible\n")
-        f.write("4. Stress = 0 means all pairwise distances are perfectly preserved\n")
-    
-    print(f"\nResults saved to: {results_file}")
-    print(f"\nExperiment complete! All outputs in: {output_path.resolve()}")
+for X_transformed, method_name in [(X_pca, 'PCA'), 
+                                    (X_mds_metric, 'Metric MDS'), 
+                                    (X_mds_nonmetric, 'Non-Metric MDS')]:
+    between, within = calculate_separation(X_transformed, y_wine)
+    ratio = between / within
+    print(f"\n{method_name}:")
+    print(f"  - Between-class distance: {between:.3f}")
+    print(f"  - Within-class distance:  {within:.3f}")
+    print(f"  - Separation ratio:       {ratio:.3f} (higher = better separation)")
 
+print("\n" + "=" * 80)
+print("PART 2: Stress Function Analysis on Iris Dataset")
+print("=" * 80)
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Compare PCA, Metric MDS, and Non-Metric MDS on Iris dataset"
-    )
-    parser.add_argument(
-        '--output-dir', type=str, default='outputs/q4_mds',
-        help='Output directory for results'
-    )
-    parser.add_argument(
-        '--n-components', type=int, nargs='+', default=[1, 2, 3, 4],
-        help='Dimensions for stress analysis (default: 1 2 3 4)'
-    )
-    parser.add_argument(
-        '--verbose', action='store_true',
-        help='Verbose output'
-    )
-    return parser.parse_args()
+# Load Iris dataset
+iris = load_iris()
+X_iris = iris.data
+y_iris = iris.target
 
+print(f"\nIris Dataset Info:")
+print(f"- Shape: {X_iris.shape}")
+print(f"- Original dimensions: {X_iris.shape[1]}")
 
-def main():
-    args = parse_args()
-    
-    run_experiment(
-        output_dir=args.output_dir,
-        stress_dimensions=args.n_components,
-        verbose=args.verbose
-    )
+# Standardize
+X_iris_scaled = scaler.fit_transform(X_iris)
 
+# Calculate stress for different dimensions
+dimensions = range(1, 5)
+stress_values = []
 
-if __name__ == "__main__":
-    main()
+print("\nCalculating stress for dimensions 1-4...")
+for n_dim in dimensions:
+    mds = MDS(n_components=n_dim, metric=False, dissimilarity='euclidean',
+              random_state=42, n_init=10, max_iter=300)
+    mds.fit(X_iris_scaled)
+    stress_values.append(mds.stress_)
+    print(f"  Dimensions: {n_dim}, Stress: {mds.stress_:.4f}")
+
+# Plot stress vs dimensions
+plt.figure(figsize=(10, 6))
+plt.plot(dimensions, stress_values, 'o-', linewidth=2, markersize=10, 
+         color='#E74C3C', markerfacecolor='white', markeredgewidth=2)
+
+for i, (dim, stress) in enumerate(zip(dimensions, stress_values)):
+    plt.annotate(f'{stress:.2f}', 
+                xy=(dim, stress), 
+                xytext=(0, 10), 
+                textcoords='offset points',
+                ha='center',
+                fontsize=11,
+                fontweight='bold')
+
+plt.xlabel('Number of Dimensions', fontsize=14, fontweight='bold')
+plt.ylabel('Stress Value', fontsize=14, fontweight='bold')
+plt.title('Non-Metric MDS: Stress vs Number of Dimensions\n(Iris Dataset)', 
+          fontsize=16, fontweight='bold')
+plt.grid(True, alpha=0.3)
+plt.xticks(dimensions)
+
+# Add shaded region to show improvement
+plt.fill_between(dimensions, stress_values, alpha=0.2, color='#E74C3C')
+
+plt.tight_layout()
+plt.savefig('./outputs/stress_vs_dimensions.png', dpi=300, bbox_inches='tight')
+print(f"\n✓ Plot saved to ./outputs/stress_vs_dimensions.png")
+
+# Analysis and conclusions
+print("\n" + "=" * 80)
+print("CONCLUSIONS AND ANALYSIS")
+print("=" * 80)
+
+print("\n📊 WHICH METHOD SHOWS CLEARER SEPARATION?")
+print("-" * 80)
+
+# Calculate which method has best separation
+methods_data = [
+    ('PCA', X_pca),
+    ('Metric MDS', X_mds_metric),
+    ('Non-Metric MDS', X_mds_nonmetric)
+]
+
+best_method = None
+best_ratio = 0
+
+for name, X_transformed in methods_data:
+    between, within = calculate_separation(X_transformed, y_wine)
+    ratio = between / within
+    if ratio > best_ratio:
+        best_ratio = ratio
+        best_method = name
+
+print(f"\n🏆 WINNER: {best_method} (Separation Ratio: {best_ratio:.3f})")
