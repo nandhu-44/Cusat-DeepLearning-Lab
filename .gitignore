@@ -1,6 +1,5 @@
-data/
-# outputs/
-test/
-__pycache__/
 .venv/
-.vscode/
+generated_samples/
+data/
+*.ckpt
+__pycache__/
