@@ -1,0 +1,141 @@
+================================================================================                               
+PROBABILISTIC PCA (PPCA) vs CLASSICAL PCA
+================================================================================
+
+================================================================================
+PART 1: Classical PCA vs PPCA on MNIST
+================================================================================
+
+Loading MNIST dataset...
+Downloading train-images-idx3-ubyte.gz...
+Downloading train-labels-idx1-ubyte.gz...
+Downloading t10k-images-idx3-ubyte.gz...
+Downloading t10k-labels-idx1-ubyte.gz...
+Train set: (60000, 784)
+Test set: (10000, 784)
+
+Using 10000 training samples for analysis
+
+--------------------------------------------------------------------------------
+Comparing reconstruction quality across latent dimensions...
+--------------------------------------------------------------------------------
+
+📊 Latent dimensions: 10
+  Classical PCA...
+    MSE: 0.034024, PSNR: 14.68 dB
+  Probabilistic PCA (EM)...
+  Iteration 20/100, Log-likelihood: -inf, sigma^2: 0.034470
+  Iteration 40/100, Log-likelihood: -inf, sigma^2: 0.034466
+  Iteration 60/100, Log-likelihood: -inf, sigma^2: 0.034465
+  Iteration 80/100, Log-likelihood: -inf, sigma^2: 0.034464
+  Iteration 100/100, Log-likelihood: -inf, sigma^2: 0.034464
+    MSE: 0.034032, PSNR: 14.68 dB
+    Noise variance (σ²): 0.034464
+
+📊 Latent dimensions: 20
+  Classical PCA...
+    MSE: 0.023564, PSNR: 16.28 dB
+  Probabilistic PCA (EM)...
+  Iteration 20/100, Log-likelihood: -inf, sigma^2: 0.024213
+  Iteration 40/100, Log-likelihood: -inf, sigma^2: 0.024184
+  Iteration 60/100, Log-likelihood: -inf, sigma^2: 0.024182
+  Iteration 80/100, Log-likelihood: -inf, sigma^2: 0.024181
+  Iteration 100/100, Log-likelihood: -inf, sigma^2: 0.024181
+    MSE: 0.023578, PSNR: 16.28 dB
+    Noise variance (σ²): 0.024181
+
+📊 Latent dimensions: 50
+  Classical PCA...
+    MSE: 0.011556, PSNR: 19.37 dB
+  Probabilistic PCA (EM)...
+  Iteration 20/100, Log-likelihood: -inf, sigma^2: 0.012355
+  Iteration 40/100, Log-likelihood: -inf, sigma^2: 0.012347
+  Iteration 60/100, Log-likelihood: -inf, sigma^2: 0.012345
+  Iteration 80/100, Log-likelihood: -inf, sigma^2: 0.012344
+  Iteration 100/100, Log-likelihood: -inf, sigma^2: 0.012343
+    MSE: 0.011581, PSNR: 19.36 dB
+    Noise variance (σ²): 0.012343
+
+📊 Latent dimensions: 100
+  Classical PCA...
+    MSE: 0.005594, PSNR: 22.52 dB
+  Probabilistic PCA (EM)...
+  Iteration 20/100, Log-likelihood: -inf, sigma^2: 0.006425
+  Iteration 40/100, Log-likelihood: -inf, sigma^2: 0.006415
+  Iteration 60/100, Log-likelihood: -inf, sigma^2: 0.006413
+  Iteration 80/100, Log-likelihood: -inf, sigma^2: 0.006413
+  Iteration 100/100, Log-likelihood: -inf, sigma^2: 0.006412
+    MSE: 0.005633, PSNR: 22.49 dB
+    Noise variance (σ²): 0.006412
+
+📊 Latent dimensions: 150
+  Classical PCA...
+    MSE: 0.003362, PSNR: 24.73 dB
+  Probabilistic PCA (EM)...
+  Iteration 20/100, Log-likelihood: -inf, sigma^2: 0.004167
+  Iteration 40/100, Log-likelihood: -inf, sigma^2: 0.004160
+  Iteration 60/100, Log-likelihood: -inf, sigma^2: 0.004159
+  Iteration 80/100, Log-likelihood: -inf, sigma^2: 0.004158
+  Iteration 100/100, Log-likelihood: -inf, sigma^2: 0.004158
+    MSE: 0.003412, PSNR: 24.67 dB
+    Noise variance (σ²): 0.004158
+
+✓ Comparison plot saved to ./outputs/ppca/mnist_comparison.png
+
+Generating reconstruction visualizations...
+  Iteration 20/100, Log-likelihood: -inf, sigma^2: 0.012355
+  Iteration 40/100, Log-likelihood: -inf, sigma^2: 0.012347
+  Iteration 60/100, Log-likelihood: -inf, sigma^2: 0.012345
+  Iteration 80/100, Log-likelihood: -inf, sigma^2: 0.012344
+  Iteration 100/100, Log-likelihood: -inf, sigma^2: 0.012343
+✓ Reconstruction samples saved to ./outputs/ppca/mnist_reconstructions.png
+
+
+================================================================================
+PART 2: PPCA for Missing Data Imputation
+================================================================================
+
+Generating synthetic low-rank Gaussian data...
+Data shape: (500, 50)
+True rank: 5
+Missing entries: 2500 (10.0%)
+
+--------------------------------------------------------------------------------
+Baseline: Mean Imputation
+--------------------------------------------------------------------------------
+RMSE: 2.174621
+MAE:  1.672169
+
+--------------------------------------------------------------------------------
+PPCA Imputation (EM Algorithm)
+--------------------------------------------------------------------------------
+  Iteration 20/200, Log-likelihood: -inf, sigma^2: 0.105948
+  Iteration 40/200, Log-likelihood: -inf, sigma^2: 0.105931
+  Iteration 60/200, Log-likelihood: -inf, sigma^2: 0.105920
+  Iteration 80/200, Log-likelihood: -inf, sigma^2: 0.105913
+  Iteration 100/200, Log-likelihood: -inf, sigma^2: 0.105908
+  Iteration 120/200, Log-likelihood: -inf, sigma^2: 0.105904
+  Iteration 140/200, Log-likelihood: -inf, sigma^2: 0.105901
+  Iteration 160/200, Log-likelihood: -inf, sigma^2: 0.105898
+  Iteration 180/200, Log-likelihood: -inf, sigma^2: 0.105896
+  Iteration 200/200, Log-likelihood: -inf, sigma^2: 0.105895
+RMSE: 0.550536
+MAE:  0.396086
+Noise variance (σ²): 0.105895
+
+================================================================================
+IMPUTATION RESULTS SUMMARY
+================================================================================
+
+Missing Data: 10.0% (2500 entries)
+True Rank: 5
+PPCA Latent Dimensions: 5
+
+--------------------------------------------------------------------------------
+Method              RMSE        MAE      Improvement
+--------------------------------------------------------------------------------
+Mean Imputation    2.174621  1.672169    (baseline)
+PPCA Imputation    0.550536  0.396086    74.7% better
+--------------------------------------------------------------------------------
+
+✓ Imputation results saved to ./outputs/ppca/imputation_results.png
